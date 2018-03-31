@@ -256,10 +256,13 @@ public:
     // called during the startup of accel cal
     void acal_init();
 
+    void temperature_cal_init();
     // update accel calibrator
     void acal_update();
 
     bool accel_cal_requires_reboot() const { return _accel_cal_requires_reboot; }
+
+    bool temperature_cal_requires_reboot() const { return _temperature_cal_requires_reboot; }
 
     // return time in microseconds of last update() call
     uint32_t get_last_update_usec(void) const { return _last_update_usec; }
@@ -460,6 +463,7 @@ private:
     AP_AccelCal* _acal;
 
     AccelCalibrator *_accel_calibrator;
+    TempCalibrator *_temp_calibrator;
 
     //save accelerometer bias and scale factors
     void _acal_save_calibrations();
@@ -467,12 +471,15 @@ private:
 
     // Returns AccelCalibrator objects pointer for specified acceleromter
     AccelCalibrator* _acal_get_calibrator(uint8_t i) { return i<get_accel_count()?&(_accel_calibrator[i]):nullptr; }
+    // Returns TempCalibrator objects pointer for specified acceleromter
+    TempCalibrator* _temp_get_calibrator(uint8_t i) { return i<get_accel_count()?&(_temp_calibrator[i]):nullptr; }
 
     float _trim_pitch;
     float _trim_roll;
     bool _new_trim;
 
     bool _accel_cal_requires_reboot;
+    bool _temperature_cal_requires_reboot;
 
     // sensor error count at startup (used to ignore errors within 2 seconds of startup)
     uint32_t _accel_startup_error_count[INS_MAX_INSTANCES];

@@ -92,6 +92,7 @@
 #include <AP_Button/AP_Button.h>
 #include <AP_Arming/AP_Arming.h>
 #include <AP_VisualOdom/AP_VisualOdom.h>
+#include <AP_AccelCal/AP_TEMP_CAL.h>
 
 // Configuration
 #include "defines.h"
@@ -185,7 +186,7 @@ private:
     DataFlash_Class DataFlash;
 
     AP_GPS gps;
-
+    AP_TEMP_CAL ap_temp_cal{DataFlash};
     // flight modes convenience array
     AP_Int8 *flight_modes;
 

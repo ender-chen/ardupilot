@@ -156,6 +156,7 @@ public:
     void Log_Write_VisualOdom(float time_delta, const Vector3f &angle_delta, const Vector3f &position_delta, float confidence);
     void Log_Write_AOA_SSA(AP_AHRS &ahrs);
     void Log_Write_Beacon(AP_Beacon &beacon);
+    void Log_Write_Temperature_Offset(uint8_t index, float temperature, float offset_x, float offset_y, float offset_z);
 
     void Log_Write(const char *name, const char *labels, const char *fmt, ...);
 

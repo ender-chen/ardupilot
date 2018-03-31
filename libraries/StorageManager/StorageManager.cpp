@@ -50,7 +50,7 @@ const StorageManager::StorageArea StorageManager::layout_default[STORAGE_NUM_ARE
     { StorageParam,    8192,  1280},
     { StorageRally,    9472,   300},
     { StorageFence,    9772,   256},
-    { StorageMission, 10028,  6228}, // leave 128 byte gap for expansion
+    { Storage_Acc_temperature_cal, 10028,  6228}, // leave 128 byte gap for expansion
 #endif
 };
 

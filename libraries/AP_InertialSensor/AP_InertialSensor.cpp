@@ -447,6 +447,7 @@ AP_InertialSensor::AP_InertialSensor() :
     _backends_detected(false),
     _dataflash(nullptr),
     _accel_cal_requires_reboot(false),
+    _temperature_cal_requires_reboot(false),
     _startup_error_counts_set(false),
     _startup_ms(0)
 {
@@ -1601,6 +1602,16 @@ void AP_InertialSensor::acal_init()
     }
 }
 
+void AP_InertialSensor::temperature_cal_init()
+{
+    if (_ap_tempcalibrator == nullptr) {
+        _ap_tempcalibrator = new AP_TempCal;
+    }
+    if (_temp_calibrator == nullptr) {
+        _temp_calibrator = new TempCalibrator[INS_MAX_INSTANCES];
+    }
+}
+
 // update accel calibrator
 void AP_InertialSensor::acal_update()
 {
@@ -1615,6 +1626,18 @@ void AP_InertialSensor::acal_update()
     }
 }
 
+void AP_InertialSensor::temperature_cal_update()
+{
+    if (_ap_tempcalibrator == nullptr) {
+        return;
+    }
+
+    _ap_tempcalibrator->update();
+
+    if (hal.util->get_soft_armed() && _ap_tempcalibrator->get_status() != TEMP_CAL_NOT_STARTED) {
+        _ap_tempcalibrator->cancel();
+    }
+}
 /*
     set and save accelerometer bias along with trim calculation
 */
@@ -1632,6 +1655,8 @@ void AP_InertialSensor::_acal_save_calibrations()
             _accel_offset[i].set_and_save(Vector3f());
             _accel_scale[i].set_and_save(Vector3f());
         }
+
+        _temp_calibrator[i].set_scale_z(_accel_scale[i].z)
     }
 
     // clear any unused accels
@@ -1640,6 +1665,7 @@ void AP_InertialSensor::_acal_save_calibrations()
         _accel_offset[i].set_and_save(Vector3f());
         _accel_scale[i].set_and_save(Vector3f());
     }
+
     
     Vector3f aligned_sample;
     Vector3f misaligned_sample;
@@ -1682,6 +1708,26 @@ void AP_InertialSensor::_acal_save_calibrations()
     _accel_cal_requires_reboot = true;
 }
 
+void AP_InertialSensor::_temperature_save_calibrations()
+{
+    Vector3f bias, gain;
+    for (uint8_t i=0; i<_accel_count; i++) {
+        if (_accel_calibrator[i].get_status() == ACCEL_CAL_SUCCESS) {
+            _accel_calibrator[i].get_calibration(bias, gain);
+            _accel_offset[i].set_and_save(bias);
+            _accel_scale[i].set_and_save(gain);
+            _accel_id[i].save();
+            _accel_id_ok[i] = true;
+        } else {
+            _accel_offset[i].set_and_save(Vector3f());
+            _accel_scale[i].set_and_save(Vector3f());
+        }
+
+        _temp_calibrator[i].set_scale_z(_accel_scale[i].z)
+    }
+    _temperature_cal_requires_reboot = true
+}
+
 void AP_InertialSensor::_acal_event_failure()
 {
     for (uint8_t i=0; i<_accel_count; i++) {
@@ -1716,6 +1762,7 @@ bool AP_InertialSensor::get_fixed_mount_accel_cal_sample(uint8_t sample_num, Vec
     ret.rotate(_board_orientation);
     return true;
 }
+
 
 /*
     Returns Primary accelerometer level data averaged during accel calibration's first step
