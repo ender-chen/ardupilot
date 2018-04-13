@@ -93,8 +93,12 @@ void AP_InertialSensor_Backend::_rotate_and_correct_accel(uint8_t instance, Vect
     // rotate for sensor orientation
     accel.rotate(_imu._accel_orientation[instance]);
     
+    uint32_t limit = _imu.
+    _imu._accel_offset[]
+    _correct_accel_according_temperature(uint8_t instance, Vector3f &accel)
     // apply offsets
     accel -= _imu._accel_offset[instance];
+
 
     // apply scaling
     const Vector3f &accel_scale = _imu._accel_scale[instance].get();
@@ -104,6 +108,58 @@ void AP_InertialSensor_Backend::_rotate_and_correct_accel(uint8_t instance, Vect
 
     // rotate to body frame
     accel.rotate(_imu._board_orientation);
+}
+
+void AP_InertialSensor_Backend::_correct_accel_according_temperature(uint8_t instance, Vector3f &accel)
+{
+    // _storage_temperature_index_limit[];
+    // _storage_temperature_offset_instance = _storage_temperature_offset[instance];
+
+    if (_imu._storage_temperature_index_limit == nullptr || _imu._storage_temperature_offset == nullptr) {
+        return;
+    } 
+
+    uint16_t index_limit = _storage_temperature_index_limit[instance];
+    float imu_temperature = _imu.temperature[instance];
+
+    static uint16_t last_read_temperature_index = 0;
+
+    Vector3f offset;
+
+    if (imu_temperature < _storage_temperature_offset_instance[0].temperature)
+    {
+        offset = _imu._storage_temperature_offset_instance[0].offset;
+    } else if (_imu.temperature[instance] > _storage_temperature_offset_instance[index_limit-1].temperature) {
+        offset = _imu._storage_temperature_offset_instance[index_limit-1].offset;
+    } else {
+        uint16_t start_index;
+        if (last_read_temperature_index -5 < 0) {
+            start_index = 0;
+        } else {
+            start_index = last_read_temperature_index - 5;
+        }
+        uint16_t index = start_index;
+        bool got_offset = false;
+
+        while(!(imu_temperature >= _storage_temperature_offset_instance[index].temperature && imu_temperature <= _storage_temperature_offset_instance[index+1].temperature)) {
+            bool need_reverse = false;
+            if (!need_reverse) {
+                if (index < index_limit) {
+                    index++;
+                } else {
+                    index = start_index;
+                    need_reverse = true;
+                }
+            } else {
+                if (index > 0) {
+                    index--;
+                }
+            }
+        }
+        offset = _imu._storage_temperature_offset[instance].offset;
+        last_read_temperature_index = index;
+    }
+    accel -= offset;
 }
 
 void AP_InertialSensor_Backend::_rotate_and_correct_gyro(uint8_t instance, Vector3f &gyro) 
@@ -229,7 +285,8 @@ void AP_InertialSensor_Backend::_publish_accel(uint8_t instance, const Vector3f 
     _imu._delta_velocity_valid[instance] = true;
 
 
-    if (_imu._accel_calibrator != nullptr && _imu._accel_calibrator[instance].get_status() == ACCEL_CAL_COLLECTING_SAMPLE) {
+    if (_imu._accel_calibrator != nullptr && _imu._accel_calibrator[instance].get_status() == ACCEL_CAL_COLLECTING_SAMPLE || /
+        _imu._temp_calibrator != nullptr && _imu._temp_calibrator[instance].get_status() == TEMP_CAL_COLLECTING_SAMPLE) {
         Vector3f cal_sample = _imu._delta_velocity[instance];
 
         //remove rotation
@@ -243,8 +300,12 @@ void AP_InertialSensor_Backend::_publish_accel(uint8_t instance, const Vector3f 
         
         //remove offsets
         cal_sample += _imu._accel_offset[instance].get() * _imu._delta_velocity_dt[instance] ;
-
-        _imu._accel_calibrator[instance].new_sample(cal_sample, _imu._delta_velocity_dt[instance]);
+        if (_imu._accel_calibrator != nullptr && _imu._accel_calibrator[instance].get_status() == ACCEL_CAL_COLLECTING_SAMPLE) {
+            _imu._accel_calibrator[instance].new_sample(cal_sample, _imu._delta_velocity_dt[instance]);
+        }
+        if (_imu._temp_calibrator != nullptr && _imu._temp_calibrator[instance].get_status() == TEMP_CAL_COLLECTING_SAMPLE) {
+            _imu._temp_calibrator[instance].new_sample(cal_sample, _imu._delta_velocity_dt[instance]);
+        }
     }
 }
 
@@ -362,6 +423,8 @@ void AP_InertialSensor_Backend::_publish_temperature(uint8_t instance, float tem
     if (instance == 0) {
         hal.util->set_imu_temp(temperature);
     }
+    //* set the _temperature for the new instance.
+    _imu._temp_calibrator[instance].new_temperature(_imu._temperature[instance]);
 }
 
 /*

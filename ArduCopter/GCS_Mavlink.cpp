@@ -1306,6 +1306,9 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
             } else if (is_equal(packet.param6,1.0f)) {
                 // compassmot calibration
                 result = copter.mavlink_compassmot(chan);
+            } else if (is_equal(packet.param5,3.0f)) {
+                result = MAV_RESULT_ACCEPTED;
+                copter.ins.temperature_cal_init(this, copter.DataFlash);
             }
             break;
 

@@ -47,7 +47,8 @@ public:
         StorageFence   = 1,
         StorageRally   = 2,
         StorageMission = 3,
-        StorageKeys    = 4
+        StorageKeys    = 4,
+        Storage_acc_temperature_cal = 5
     };
 
     // erase whole of storage

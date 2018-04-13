@@ -447,8 +447,9 @@ AP_InertialSensor::AP_InertialSensor() :
     _backends_detected(false),
     _dataflash(nullptr),
     _accel_cal_requires_reboot(false),
+    _temperature_cal_requires_reboot(false),
     _startup_error_counts_set(false),
-    _startup_ms(0)
+    _startup_ms(0),
 {
     if (_s_instance) {
         AP_HAL::panic("Too many inertial sensors");
@@ -488,6 +489,7 @@ AP_InertialSensor::AP_InertialSensor() :
     memset(_delta_angle_valid,0,sizeof(_delta_angle_valid));
 
     AP_AccelCal::register_client(this);
+    _ap_temp_cal = new AP_TempCal;
 }
 
 /*
@@ -631,6 +633,8 @@ AP_InertialSensor::init(uint16_t sample_rate)
         }
     }
 
+    _storage_temperature_offset = AP_TempCal->require_offset();
+    _storage_temperature_index_limit = AP_TempCal->require_limit(_storage_num_cals);
     // calibrate gyros unless gyro calibration has been disabled
     if (gyro_calibration_timing() != GYRO_CAL_NEVER) {
         init_gyro();
@@ -1008,6 +1012,13 @@ bool AP_InertialSensor::accel_calibrated_ok_all() const
     }
 
     // if we got this far the accelerometers must have been calibrated
+    return true;
+}
+
+bool AP_InertialSensor::accel_temperature_offset_calibrated_ok_all() const {
+    if (_storage_temperature_offset == nullptr || _storage_temperature_index_limit == nullptr || _storage_num_cals != _accel_count) {
+        return false;
+    }
     return true;
 }
 
@@ -1601,6 +1612,18 @@ void AP_InertialSensor::acal_init()
     }
 }
 
+void AP_InertialSensor::temperature_cal_init()
+{
+    _storage_num_cals = 0;
+    _storage_temperature_offset = nullptr;
+    _storage_temperature_index_limit = nullptr;
+    _ap_temp_cal->clear_storage_offset();
+    if (_temp_calibrator == nullptr) {
+        _temp_calibrator = new TempCalibrator[INS_MAX_INSTANCES];
+    }
+    _ap_temp_cal->start();
+}
+
 // update accel calibrator
 void AP_InertialSensor::acal_update()
 {
@@ -1615,6 +1638,18 @@ void AP_InertialSensor::acal_update()
     }
 }
 
+void AP_InertialSensor::temperature_cal_update()
+{
+    if (_ap_temp_cal == nullptr) {
+        return;
+    }
+
+    _ap_temp_cal->update();
+
+    if (hal.util->get_soft_armed() && _ap_temp_cal->get_status() != TEMP_CAL_NOT_STARTED) {
+        _ap_temp_cal->cancel();
+    }
+}
 /*
     set and save accelerometer bias along with trim calculation
 */
@@ -1632,6 +1667,8 @@ void AP_InertialSensor::_acal_save_calibrations()
             _accel_offset[i].set_and_save(Vector3f());
             _accel_scale[i].set_and_save(Vector3f());
         }
+
+        _temp_calibrator[i].set_scale_z(_accel_scale[i].z)
     }
 
     // clear any unused accels
@@ -1640,6 +1677,7 @@ void AP_InertialSensor::_acal_save_calibrations()
         _accel_offset[i].set_and_save(Vector3f());
         _accel_scale[i].set_and_save(Vector3f());
     }
+
     
     Vector3f aligned_sample;
     Vector3f misaligned_sample;
@@ -1682,6 +1720,18 @@ void AP_InertialSensor::_acal_save_calibrations()
     _accel_cal_requires_reboot = true;
 }
 
+void AP_InertialSensor::_reset_temperature_calibrations()
+{
+    for (uint8_t i=0; i<_accel_count; i++) {
+        if (_temp_calibrator[i] != nullptr) {
+            delete _temp_calibrator[i];
+        }
+    }
+}
+void AP_InertialSensor::_reboot_temperature_calibrations() {
+    _temperature_cal_requires_reboot = true
+}
+
 void AP_InertialSensor::_acal_event_failure()
 {
     for (uint8_t i=0; i<_accel_count; i++) {
@@ -1716,6 +1766,7 @@ bool AP_InertialSensor::get_fixed_mount_accel_cal_sample(uint8_t sample_num, Vec
     ret.rotate(_board_orientation);
     return true;
 }
+
 
 /*
     Returns Primary accelerometer level data averaged during accel calibration's first step

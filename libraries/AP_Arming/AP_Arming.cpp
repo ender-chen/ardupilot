@@ -194,6 +194,13 @@ bool AP_Arming::ins_checks(bool report)
             }
             return false;
         }
+
+        if (!ins.accel_temperature_offset_calibrated_ok_all()) {
+            if (report) {
+                GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "PreArm: Accel temperature calibration needed")
+            }
+            return false;
+        }
         
         //check if accelerometers have calibrated and require reboot
         if (ins.accel_cal_requires_reboot()) {

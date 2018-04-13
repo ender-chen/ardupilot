@@ -234,6 +234,22 @@ void Copter::accel_cal_update()
 #endif
 }
 
+void Copter::temperature_cal_update() 
+{
+
+    if (hal.util->get_soft_armed()) {
+        return;
+    }
+    ins.temperature_cal_update();
+
+    if (ins.temperature_cal_requires_reboot()) {
+        hal.scheduler->delay(1000);
+        hal.scheduler->reboot(false);
+    }
+
+}
+
+
 #if GRIPPER_ENABLED == ENABLED
 // gripper update
 void Copter::gripper_update()

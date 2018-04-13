@@ -811,6 +811,15 @@ struct PACKED log_Beacon {
     float posz;
 };
 
+struct PACKED log_Temperature_Offset
+{
+    uint8_t ID;
+    float temperature;
+    float offset_x;
+    float offset_y;
+    float offset_z;
+};
+
 // #endif // SBP_HW_LOGGING
 
 #define ACC_LABELS "TimeUS,SampleUS,AccX,AccY,AccZ"
@@ -931,7 +940,9 @@ Format characters in the format string for binary log messages
     { LOG_DF_MAV_STATS, sizeof(log_DF_MAV_Stats), \
       "DMS", "IIIIIBBBBBBBBBB",         "TimeMS,N,Dp,RT,RS,Er,Fa,Fmn,Fmx,Pa,Pmn,Pmx,Sa,Smn,Smx" }, \
     { LOG_BEACON_MSG, sizeof(log_Beacon), \
-      "BCN", "QBBfffffff",  "TimeUS,Health,Cnt,D0,D1,D2,D3,PosX,PosY,PosZ" }
+      "BCN", "QBBfffffff",  "TimeUS,Health,Cnt,D0,D1,D2,D3,PosX,PosY,PosZ" },
+    { LOG_TEMPERATURE_OFFSET_MSG, sizeof(LOG_TEMPERATURE_OFFSET),
+      "TEMO",  "Bffff", "ID, Temp, Off_x, Off_y, Off_z"},
 
 // messages for more advanced boards
 #define LOG_EXTRA_STRUCTURES \
@@ -1213,6 +1224,7 @@ enum LogMessages {
     LOG_VISUALODOM_MSG,
     LOG_AOA_SSA_MSG,
     LOG_BEACON_MSG,
+    LOG_TEMPERATURE_OFFSET_MSG,
 };
 
 enum LogOriginType {

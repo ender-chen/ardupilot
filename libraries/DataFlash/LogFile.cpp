@@ -2235,3 +2235,19 @@ void DataFlash_Class::Log_Write_Beacon(AP_Beacon &beacon)
     };
     WriteBlock(&pkt_beacon, sizeof(pkt_beacon));
 }
+
+void DataFlash_Class::Log_Write_Temperature_Offset(uint8_t index, float temperature, float offset_x, float offset_y, float offset_z);
+{
+
+    struct log_Temperature pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_TEMPERATURE_OFFSET_MSG),
+
+        ID              : index,
+        temperature     : temperature;
+        offset_x        : offset_x;
+        offset_y        : offset_y;
+        offset_z        : offset_z;
+    };
+
+    DataFlash.WriteBlock(&pkt, sizeof(pkt));
+}
